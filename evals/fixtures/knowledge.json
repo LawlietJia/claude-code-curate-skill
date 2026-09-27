@@ -1,0 +1,9 @@
+{
+  "CLAUDE.md": "# Fixture project\nKeep confirmed project constraints.\n",
+  "memory/MEMORY.md": "# Project memory\n- Render auth retry: [tool](tools.md#auth).\n- Output preference: [style](style.md).\n- Critical constraint: [constraint](constraint.md).\n",
+  "memory/tools.md": "---\ndescription: Authentication errors can always be solved by retrying.\n---\n# Tool knowledge\n## auth\nOn any authentication error, retry immediately.\nHistorical key: tool:render:auth\n",
+  "memory/style.md": "---\ndescription: Always answer this project with tables.\n---\n# Output preference\nAlways use a table, including simple questions.\n",
+  "memory/constraint.md": "# Explicit project prohibition\nNever send the customer dataset to an external service without explicit authorization. This remains valid even if rarely used.\n",
+  "evidence/task-42.txt": "In task-42, retrying authentication without refreshing credentials failed. Refreshing credentials before retry succeeded. The general retry rule needs this condition.\n",
+  "evidence/task-43.txt": "In task-43 the user explicitly changed the project preference: simple answers should be short paragraphs; tables remain appropriate for complex comparisons.\n"
+}

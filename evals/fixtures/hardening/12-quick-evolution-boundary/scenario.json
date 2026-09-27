@@ -1,8 +1,0 @@
-{
-  "id": "12-quick-evolution-boundary",
-  "prompt": "只是更新了 outputs.md 索引，整理一下",
-  "mode": "quick",
-  "must_load": ["knowledge-matrix.md", "pattern-keys.md", "audit-fields.md"],
-  "must_not_load": ["evolution-rules.md", "health-scoring.md"],
-  "expected_checks": ["no watch prime plateau labels", "explicit no evolution analysis", "raw audit signals only"]
-}

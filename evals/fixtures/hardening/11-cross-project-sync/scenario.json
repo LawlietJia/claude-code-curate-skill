@@ -1,8 +1,0 @@
-{
-  "id": "11-cross-project-sync",
-  "prompt": "共享 SDK API 改了，两个下游项目都受影响，整理一下",
-  "mode": "quick",
-  "must_load": ["knowledge-matrix.md", "pattern-keys.md", "change-matrix.md", "audit-fields.md"],
-  "must_not_load": ["content-matrix.md"],
-  "expected_checks": ["detect downstream projects", "align downstream docs", "cross-project self-check"]
-}

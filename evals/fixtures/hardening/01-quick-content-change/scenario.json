@@ -1,8 +1,0 @@
-{
-  "id": "01-quick-content-change",
-  "prompt": "我刚更新了需求文档和 outputs 索引，整理一下",
-  "mode": "quick",
-  "must_load": ["knowledge-matrix.md", "pattern-keys.md", "content-matrix.md", "audit-fields.md"],
-  "must_not_load": ["health-scoring.md", "deep-output-format.md"],
-  "expected_checks": ["5-step Quick workflow", "content impact routing", "audit schema v2"]
-}

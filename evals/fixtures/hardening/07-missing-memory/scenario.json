@@ -1,8 +1,0 @@
-{
-  "id": "07-missing-memory",
-  "prompt": "/curate",
-  "mode": "quick",
-  "must_load": ["knowledge-matrix.md", "audit-fields.md"],
-  "must_not_load": ["health-scoring.md"],
-  "expected_checks": ["mark no memory directory", "continue CLAUDE and docs scan", "no crash"]
-}

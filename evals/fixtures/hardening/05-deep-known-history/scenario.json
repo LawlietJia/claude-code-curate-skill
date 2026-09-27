@@ -1,8 +1,0 @@
-{
-  "id": "05-deep-known-history",
-  "prompt": "/curate --deep",
-  "mode": "deep",
-  "must_load": ["health-scoring.md", "knowledge-matrix.md", "evolution-rules.md", "deep-output-format.md", "audit-fields.md"],
-  "must_not_load": [],
-  "expected_checks": ["effective sample denominator", "six-dimension health score", "sample-insufficient labels"]
-}

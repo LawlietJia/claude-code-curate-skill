@@ -1,8 +1,0 @@
-{
-  "id": "03-output-index-only",
-  "prompt": "只是补了 outputs.md 产出索引，整理一下",
-  "mode": "quick",
-  "must_load": ["knowledge-matrix.md", "pattern-keys.md", "audit-fields.md"],
-  "must_not_load": ["change-matrix.md", "content-matrix.md", "evolution-rules.md"],
-  "expected_checks": ["stable Pattern-Key", "no matrix load", "no fabricated evolution state"]
-}

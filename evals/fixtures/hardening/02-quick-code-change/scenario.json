@@ -1,8 +1,0 @@
-{
-  "id": "02-quick-code-change",
-  "prompt": "我刚改了 API 路由和数据库表结构，整理一下",
-  "mode": "quick",
-  "must_load": ["knowledge-matrix.md", "pattern-keys.md", "change-matrix.md", "audit-fields.md"],
-  "must_not_load": ["content-matrix.md", "health-scoring.md"],
-  "expected_checks": ["code impact matrix", "path and command truth check", "docs before CLAUDE before memory"]
-}

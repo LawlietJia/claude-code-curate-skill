@@ -1,2 +1,0 @@
-{"schema_version":2,"ts":"2026-05-23T10:00:00+08:00","mode":"quick","pattern_key":"tool:uv:package-management","action":"merge","strategy":"optimize","target":"memory/tools.md","detail":"合并 uv 包管理经验","health_score":null,"blast_radius":{"files":1,"lines":4,"level":"low"},"validated":true,"outcome":"verified"}
-{"ts":"2026-05-01T10:00:00+08:00","mode":"quick","pattern_key":"legacy:old:record","action":"update","target":"memory/old.md","detail":"legacy record without schema_version"}

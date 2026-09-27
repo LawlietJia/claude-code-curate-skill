@@ -1,8 +1,0 @@
-{
-  "id": "06-corrupt-history",
-  "prompt": "/curate",
-  "mode": "quick",
-  "must_load": ["audit-fields.md"],
-  "must_not_load": ["health-scoring.md"],
-  "expected_checks": ["skip broken history comparison", "warn user", "continue project governance"]
-}

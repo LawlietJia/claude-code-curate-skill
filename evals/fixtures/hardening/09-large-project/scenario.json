@@ -1,8 +1,0 @@
-{
-  "id": "09-large-project",
-  "prompt": "docs 目录有 60 多个 md 文件，整理一下",
-  "mode": "quick",
-  "must_load": ["knowledge-matrix.md", "audit-fields.md"],
-  "must_not_load": ["all markdown files"],
-  "expected_checks": ["recent-file scan", "large project note", "core checks still run"]
-}

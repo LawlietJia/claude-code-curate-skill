@@ -1,8 +1,0 @@
-{
-  "id": "08-monorepo-claudemd",
-  "prompt": "monorepo 里 root、packages/api、apps/web 都有 CLAUDE.md，整理一下",
-  "mode": "quick",
-  "must_load": ["knowledge-matrix.md", "audit-fields.md"],
-  "must_not_load": ["health-scoring.md"],
-  "expected_checks": ["root CLAUDE scope", "package CLAUDE scope", "local private scope"]
-}

@@ -1,8 +1,0 @@
-{
-  "id": "10-anti-pattern-cleanup",
-  "prompt": "CLAUDE.md 里有历史叙事和 docs 复述，整理一下",
-  "mode": "quick",
-  "must_load": ["knowledge-matrix.md", "pattern-keys.md", "anti-patterns.md", "audit-fields.md"],
-  "must_not_load": ["health-scoring.md"],
-  "expected_checks": ["phase one cleanup", "remove narrative", "keep pointer not duplicate"]
-}

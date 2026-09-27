@@ -1,8 +1,0 @@
-{
-  "id": "04-lightweight-noop",
-  "prompt": "这次没做什么特别的，收尾一下",
-  "mode": "lightweight",
-  "must_load": ["audit-fields.md"],
-  "must_not_load": ["change-matrix.md", "content-matrix.md", "health-scoring.md", "evolution-rules.md"],
-  "expected_checks": ["skip step 2 and step 3", "3-5 line health summary", "action no-op"]
-}
