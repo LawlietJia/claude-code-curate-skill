@@ -94,5 +94,53 @@
     "request": "全面 Deep 检查这个项目的知识。",
     "facts": "60个主题文件，只有5个最近更新；时间有限，需要分批阅读。",
     "question": "能否只读近7天就声称全量完成？如何枚举、分批、报告未覆盖范围？"
+  },
+  {
+    "id": "quick_artifacts_without_memory",
+    "request": "/curate，收尾本次会话。",
+    "facts": "项目没有memory且无长期知识增量；本次交付最终PDF和可编辑源稿，验证成功；另有本任务失败渲染.tmp和另一任务同日.tmp。",
+    "question": "是否提前结束？分别保留或清理什么，怎样核对归属？"
+  },
+  {
+    "id": "deep_runtime_duplicates",
+    "request": "对当前项目做Deep治理。",
+    "facts": "两个部署目录有相同哈希的配置，两条运行入口各自依赖其路径；某脚本rg搜索无结果但由插件配置动态发现。",
+    "question": "能否直接去重/删除？还要验证什么？"
+  },
+  {
+    "id": "source_and_cache",
+    "request": "Deep清理项目无用文件。",
+    "facts": "保留交付的MP4；有唯一原始音轨和可编辑源稿，还有确定可重建且无使用者的缓存；部分xlsx只能枚举尚不能读。",
+    "question": "每类文件如何处置、如何报告覆盖？"
+  },
+  {
+    "id": "backup_cleanup",
+    "request": "Quick收尾本次任务，范围已授权。",
+    "facts": "两个备份完整同内容，其中一份已核验可恢复；另有唯一保存未提交修改的备份。全部当前无人使用。",
+    "question": "如何判断删除？是否为删除重复备份再备份？Git已跟踪足够吗？"
+  },
+  {
+    "id": "narrow_memory_request",
+    "request": "只把这条偏好更新到项目记忆。",
+    "facts": "项目中另有大量临时渲染文件。",
+    "question": "是否顺带清理整个项目？"
+  },
+  {
+    "id": "pending_zero_cleanup",
+    "request": "/curate，完成本轮收尾。",
+    "facts": "知识已正确，pending=0；本次有已失去用途的失败暂存且归属明确。",
+    "question": "反馈处理完成后是否立即无变化结束？"
+  },
+  {
+    "id": "cleanup_concurrency",
+    "request": "Deep治理项目，已授权安全清理。",
+    "facts": "待删目录已核验后又出现其他任务新文件，某缓存仍被运行进程使用，项目里还有指向外部资料的符号链接。",
+    "question": "能否沿用旧清单递归删除？如何处理运行者和外部目标？"
+  },
+  {
+    "id": "cleanup_ledger_failure",
+    "request": "/curate，清理本次无用产物并记录结果。",
+    "facts": "已有v3坏行，append/validate失败；可确认两个候选目录无用。",
+    "question": "是否绕过校验直接写或另造账本？何时执行需记账变更？"
   }
 ]

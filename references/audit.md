@@ -32,9 +32,11 @@ python3 "$CURATE_DIR/scripts/curate_check.py" append --ledger "$CURATE_DIR/asset
 python3 "$CURATE_DIR/scripts/curate_check.py" validate --ledger "$CURATE_DIR/assets/curate-events.v3.jsonl"
 ```
 
-用 append 写入并检查返回值：相同 ID/内容返回 appended=false；相同 ID/不同内容拒绝，先查原事件。遇路径链接、异常硬链接或损坏尾行错误时停止追加，保留原件并报告，不自行截断账本。其他写入者改动知识文件时仍须重新读取及检查指纹。
+只通过 append 写入当前账本，不用直接追加、重定向或其他自造格式绕过它。用 append 写入并检查返回值：相同 ID/内容返回 appended=false；相同 ID/不同内容拒绝，先查原事件。遇路径链接、异常硬链接或损坏尾行错误时停止追加，保留原件并报告，不自行截断账本。其他写入者改动知识文件时仍须重新读取及检查指纹。
 
 当前账本损坏时停止追加、保留原件并报告具体行，勿报全部成功。历史账本错误另报，不能混进当前校验分母。日志增长到读取成本明显变高时，可按已授权方式分段并保留范围及来源定位；没有必要每次加载全历史。
+
+产物清理沿用 delete/dedup/merge；同一理由的一组相关文件可写一条事件，target 列实际路径，detail 写删除依据、保留对象和必要恢复位置，verification 写实际核验及局限。未发生知识使用就不造 feedback，不为每个缓存单独记账。
 
 ## 校验覆盖
 
