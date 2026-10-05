@@ -172,16 +172,14 @@ def inspect(args):
         lines=text.count('\n')+1 if text else 0
         units=len(text.encode('utf-16-le'))//2
         byte_count=len(text.encode('utf-8'))
-        known=args.claude_version=='2.1.269'
         metrics=dict(lines=lines,utf16_units=units,utf8_bytes=byte_count,
-                     version=args.claude_version,exact_model_verified=known,
-                     would_truncate=(lines>200 or units>25000) if known else None)
-        if known and metrics['would_truncate']:
+                     version=args.claude_version,exact_model_verified=False,
+                     limit_basis='default_index_budget',
+                     would_truncate=(lines>200 or units>25000))
+        if metrics['would_truncate']:
             issues.append(issue('index_load_limit','MEMORY.md'))
         if byte_count>25000 or lines>150:
             issues.append(issue('index_soft_budget','MEMORY.md',severity='warning'))
-        if not known:
-            issues.append(issue('runtime_limit_unverified','MEMORY.md',severity='warning'))
     if args.snapshot:
         path=reject_symlinks(args.snapshot)
         if path == root or root in path.parents:
@@ -413,7 +411,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     sub=parser.add_subparsers(dest='command',required=True)
     p=sub.add_parser('inspect',help='Read-only Markdown inventory and link/index checks')
-    p.add_argument('--memory',required=True);p.add_argument('--project');p.add_argument('--claude-version');p.add_argument('--snapshot')
+    p.add_argument('--memory',required=True);p.add_argument('--project');p.add_argument('--claude-version',help='Optional metadata only; never gates index checks');p.add_argument('--snapshot')
     p=sub.add_parser('guard',help='Check file drift against an inspect snapshot');p.add_argument('--snapshot',required=True)
     p=sub.add_parser('append',help='Validate and idempotently append one current v3 event')
     p.add_argument('--ledger',required=True);p.add_argument('--event',required=True)

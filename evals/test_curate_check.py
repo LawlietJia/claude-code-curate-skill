@@ -71,17 +71,28 @@ class CurateCheckTests(unittest.TestCase):
 
     def test_chinese_utf8_soft_budget_does_not_equal_runtime_truncation(self):
         (self.memory/'MEMORY.md').write_text('中'*9000+'\n')
-        r=self.run_cli('inspect','--memory',self.memory,'--claude-version','2.1.269')
+        r=self.run_cli('inspect','--memory',self.memory)
         self.assertGreater(r['index']['utf8_bytes'],25000)
         self.assertEqual(r['index']['utf16_units'],9000)
         self.assertFalse(r['index']['would_truncate'])
 
-    def test_known_runtime_over_limit_and_unknown_version(self):
-        (self.memory/'MEMORY.md').write_text('\n'.join('line '+str(i) for i in range(201)))
-        r=self.run_cli('inspect','--memory',self.memory,'--claude-version','2.1.269',code=1)
-        self.assertTrue(r['index']['would_truncate'])
-        r=self.run_cli('inspect','--memory',self.memory,'--claude-version','9.9.9')
-        self.assertIsNone(r['index']['would_truncate'])
+    def test_index_limit_applies_without_version_and_across_versions(self):
+        for version in [None, '2.1.300', '3.0.0']:
+            args=[] if version is None else ['--claude-version',version]
+            for lines in [200,201]:
+                with self.subTest(version=version,lines=lines):
+                    (self.memory/'MEMORY.md').write_text('\n'.join('line '+str(i) for i in range(lines)))
+                    r=self.run_cli('inspect','--memory',self.memory,*args,code=int(lines>200))
+                    self.assertEqual(r['index']['would_truncate'],lines>200)
+                    self.assertEqual(r['index']['version'],version)
+                    self.assertFalse(any(i['type']=='runtime_limit_unverified' for i in r['issues']))
+
+    def test_character_budget_is_version_independent(self):
+        for text,over in [('a'*25000,False),('a'*25001,True),('😀'*12501,True)]:
+            with self.subTest(length=len(text),over=over):
+                (self.memory/'MEMORY.md').write_text(text)
+                r=self.run_cli('inspect','--memory',self.memory,code=int(over))
+                self.assertEqual(r['index']['would_truncate'],over)
 
     def test_snapshot_detects_change_add_delete_without_writing_memory(self):
         snap=self.root/'snapshot.json'

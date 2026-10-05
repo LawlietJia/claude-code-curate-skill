@@ -40,7 +40,7 @@ python3 "$CURATE_DIR/scripts/curate_check.py" validate --ledger "$CURATE_DIR/ass
 
 ## 校验覆盖
 
-- `inspect --memory DIR [--project ROOT] [--claude-version VERSION] [--snapshot FILE]`：所有 memory Markdown 的指纹、本地普通/引用式 Markdown 链接、入口计量。忽略代码和注释示例，不检查锚点、语义正确性及任意项目外引用；特殊语法需人工检查。快照必须在 memory 外且文件不存在。
+- `inspect --memory DIR [--project ROOT] [--claude-version VERSION] [--snapshot FILE]`：所有 memory Markdown 的指纹、本地普通/引用式 Markdown 链接、入口计量。忽略代码和注释示例，不检查锚点、语义正确性及任意项目外引用；特殊语法需人工检查。快照必须在 memory 外且文件不存在。 入口默认检查 200 行及 25,000 UTF-16 单元，独立于版本号；would_truncate 表示默认预算下的截断风险，不代表实测当前运行时。--claude-version 仅作为可选元数据记录，不影响检查。
 - `guard --snapshot FILE`：比较 memory Markdown 清单和内容，变更/新增/删除则失败。不是备份，不覆盖 CLAUDE.md 或其他目录，不保证下一毫秒无人写入。
 - `validate --ledger FILE`：仅当前 v3 的结构检查，不检查真实收益。
 - `skill --root DIR`：本体包装/相对链接检查；改版本时再跑，不是每次 Quick 的前置条件。

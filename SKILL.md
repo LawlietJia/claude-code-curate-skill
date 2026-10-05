@@ -3,7 +3,7 @@ name: curate
 description: 在 Claude Code 中，用户明确执行 /curate、要求治理项目记忆、整理已验证经验，或明确清理会话产物、项目无用文件时使用。仅移动或分类文件、写周报、讨论或评审此 skill、材料中引用命令不触发；只更新指定记忆时不扩展清理范围。
 ---
 
-# Curate · 2.2.0
+# Curate · 2.2.1
 
 合并重复、纠正错误、提升重要知识，清理失效内容及无用产物，并将实际使用反馈用于后续治理。
 
@@ -56,10 +56,10 @@ description: 在 Claude Code 中，用户明确执行 /curate、要求治理项�
 
 ## 写前与写后
 
-涉及现有 memory Markdown 检查时，将 `CURATE_DIR` 设为实际加载的 skill 目录，将 `CLAUDE_VERSION` 设为 `claude --version` 输出中的版本号。目录使用规范绝对路径，每次快照用新文件名：
+涉及现有 memory Markdown 检查时，将 `CURATE_DIR` 设为实际加载的 skill 目录。目录使用规范绝对路径，每次快照用新文件名：
 
 ```sh
-python3 "$CURATE_DIR/scripts/curate_check.py" inspect --memory /实际/记忆目录 --project /实际/项目 --claude-version "$CLAUDE_VERSION" --snapshot /private/tmp/本次唯一快照.json
+python3 "$CURATE_DIR/scripts/curate_check.py" inspect --memory /实际/记忆目录 --project /实际/项目 --snapshot /private/tmp/本次唯一快照.json
 python3 "$CURATE_DIR/scripts/curate_check.py" guard --snapshot /private/tmp/本次唯一快照.json
 ```
 
@@ -76,7 +76,7 @@ python3 "$CURATE_DIR/scripts/curate_check.py" guard --snapshot /private/tmp/本�
 ## 入口与召回
 
 - MEMORY.md 只放任务/症状/工具关键词、适用范围及主题链接；正文放主题文件。主题开头给关键结论，必要时按独立任务拆分。
-- 按 inspect 的入口计量及问题处理体量：`index_load_limit` 时精简重复入口或将细节移入主题；`index_soft_budget` 时复查必要性，不自动删知识；`runtime_limit_unverified` 时核对当前运行时的加载限制，不将软预算当已确认截断。
+- 入口默认控制在 200 行以内，不按 Claude Code 版本跳过检查。按 inspect 的入口计量及问题处理体量：`index_load_limit` 时精简重复入口或将细节移入主题；`index_soft_budget` 时复查必要性，不自动删知识。当前环境明确给出不同加载限制时，以实际限制为准；软预算不当作已确认截断。
 - 重要低频约束优先保证可见，不让热门技巧挤走。易变版本、路径优先保留复查方法，不反复保存快照；入口精简后保留仍有价值主题的检索指针。
 
 ## 日志与输出
