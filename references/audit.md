@@ -41,7 +41,7 @@ python3 "$CURATE_DIR/scripts/curate_check.py" validate --ledger "$CURATE_DIR/ass
 ## 校验覆盖
 
 - `inspect --memory DIR [--project ROOT] [--claude-version VERSION] [--snapshot FILE]`：所有 memory Markdown 的指纹、本地普通/引用式 Markdown 链接、入口计量。忽略代码和注释示例，不检查锚点、语义正确性及任意项目外引用；特殊语法需人工检查。快照必须在 memory 外且文件不存在。 入口默认检查 200 行及 25,000 UTF-16 单元，独立于版本号；would_truncate 表示默认预算下的截断风险，不代表实测当前运行时。--claude-version 仅作为可选元数据记录，不影响检查。
-- `guard --snapshot FILE`：比较 memory Markdown 清单和内容，变更/新增/删除则失败。不是备份，不覆盖 CLAUDE.md 或其他目录，不保证下一毫秒无人写入。
+- `guard --snapshot FILE`：比较 memory Markdown 清单和内容，变更/新增/删除则失败。不是备份，不覆盖 CLAUDE.md 或其他目录，不保证下一毫秒无人写入。CLAUDE.md 及 rules 的体量、导入与触发另按治理规则核查，inspect/guard 不验证原生指令加载。
 - `validate --ledger FILE`：仅当前 v3 的结构检查，不检查真实收益。
 - `skill --root DIR`：本体包装/相对链接检查；改版本时再跑，不是每次 Quick 的前置条件。
 - `python3 -m unittest discover -s /安装目录/evals -v`：辅助脚本行为测试；与 LLM 治理质量分开报告。
@@ -65,8 +65,8 @@ python3 "$CURATE_DIR/scripts/curate_check.py" feedback --ledger "$CURATE_DIR/ass
 {"feedback":{"task_id":"实际会话或任务的稳定标识","effect":"helped","evidence":"实际执行结果或用户纠正的出处及内容"}}
 ```
 
-effect 限 helped/failed/exception/corrected。只有读取、未观察到使用、助手刚写好不算反馈。任务 ID 不能用每次治理的 run_id 代替；同任务出现新证据或反例可以追加不同反馈，但不增加独立任务数。相同项目+目标+task_id+effect+evidence，即使换 event_id/run_id 仍不追加；同任务矛盾信号计入复核而非成功票。依据 summary 定位候选，再核验原证据；不按计数自动改正文或排序。
+effect 限 helped/failed/exception/corrected。已有知识实际应用才记使用反馈，用户明确纠正已有知识也可记 corrected；新提炼方法的验证放在 create/merge 的 detail、verification，不追记为记忆复用。只有读取、未观察到使用、助手刚写好不算反馈。任务 ID 不能用每次治理的 run_id 代替；同任务出现新证据或反例可以追加不同反馈，但不增加独立任务数。相同项目+目标+task_id+effect+evidence，即使换 event_id/run_id 仍不追加；同任务矛盾信号计入复核而非成功票。依据 summary 定位候选，再核验原证据；不按计数自动改正文或排序。
 
-消费完成后在 merge/dedup/promote/verify/archive/delete 事件加入 `reviewed_feedback: ["原反馈event_id"]`，target 包含原知识目标及实际受影响位置，detail 写处置和理由，verification 写实际检查。脚本在落盘前确认引用的是此前同项目、同目标的反馈；反馈后才追加消费事件。需要改文件时，检查通过后才标已处理；无改动但已充分复核可用 verify，证据不足保留 pending。一次处理可引用多条反馈，原反馈不改写。
+消费完成后在 merge/dedup/promote/verify/archive/delete 事件加入 `reviewed_feedback: ["原反馈event_id"]`，target 包含原知识目标及实际受影响位置，detail 写处置和理由，verification 写实际检查。脚本在落盘前确认引用的是此前同项目、同目标的反馈；反馈后才追加消费事件。需要改文件时，检查通过后才标已处理；知识无改动但已充分复核可用 verify；如有尚未实施的工程建议，在 detail/verification 中明确。reviewed_feedback 不表示工程问题已解决。知识仍错误先修正，知识证据不足保留 pending；不为等待工程实施长期挂起已复核反馈。一次处理可引用多条反馈，原反馈不改写。
 
 `feedback` 默认返回全部该项目的未处理反馈（分页）；Quick 可用 `--target` 缩小到本次主题并报告其余范围。summary 按项目/目标/任务去重，负向或相互矛盾的同任务信号不计 helped_tasks。只依据新证据处理，累计次数本身不触发再次治理。
