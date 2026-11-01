@@ -1,4 +1,18 @@
-# Curate 2.2.3
+# Curate：Claude Code 与 Codex 两个版本
+
+治理项目知识、记忆、规则及无用产物。请按使用的工具选择版本，两版独立安装。
+
+| 平台 | 当前版本 | 源码入口 | 独立下载 |
+|---|---|---|---|
+| Claude Code | 2.2.3 | [根目录 SKILL.md](SKILL.md) | [Claude Code 安装包](https://github.com/LawlietJia/claude-code-curate-skill/releases/download/codex-v1.0.1/curate-claude-code-v2.2.3.zip) |
+| Codex | 1.0.1 | [codex/curate/SKILL.md](codex/curate/SKILL.md) | [Codex 安装包](https://github.com/LawlietJia/claude-code-curate-skill/releases/download/codex-v1.0.1/curate-codex-v1.0.1.zip) |
+
+- **Claude Code**：安装包内 `curate/` 放入 `~/.claude/skills/`；调用 `/curate` 或 `/curate --deep`。
+- **Codex**：安装包内 `curate/` 放入实际 `CODEX_HOME/skills/`，未设置时为 `~/.codex/skills/`；调用 `$curate`、`$curate --deep`，加 `--check` 仅检查。
+- 目标已有同名 skill 时，先比较与备份自己的修改，勿直接覆盖；勿把整个仓库作为 Codex 的 skill 目录。两版 skill 名均为 `curate`，使用不同平台的安装目录。
+- 根目录继续保留 Claude Code 版以兼容已有使用方式；Codex 的安装与权限边界见 [Codex 说明](codex/README.md)。独立 ZIP 只包含对应平台，不包含另一平台，也不携带维护者的治理账本或运行历史；首次运行建立自己的记录。
+
+## Claude Code 版
 
 Claude Code 项目知识、原生记忆与无用产物治理。
 

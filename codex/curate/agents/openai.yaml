@@ -1,0 +1,5 @@
+interface:
+  display_name: "Curate"
+  short_description: "手动治理 Codex 项目知识与记忆，接续未结问题并清理无用产物"
+policy:
+  allow_implicit_invocation: false
