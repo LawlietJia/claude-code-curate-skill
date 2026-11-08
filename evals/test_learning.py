@@ -96,6 +96,32 @@ class LearningTests(unittest.TestCase):
         for n,action in enumerate(['handoff','verify']):
             self.append_event(self.event(event_id='action-'+str(n),action=action))
 
+    def test_feedback_pagination_restarts_after_consumption(self):
+        for number in range(12):
+            self.append_event(self.feedback_event(
+                event_id=f'feedback-{number}',
+                feedback=dict(task_id=f'task-{number}', effect='helped', evidence='Verified task result')))
+        ledger = self.root / 'curate-events.v3.jsonl'
+        first = self.run_cli('feedback', '--ledger', ledger, '--project', self.root)
+        self.assertEqual(len(first['pending']), 10)
+        self.assertEqual(first['next_offset'], 10)
+        self.append_event(self.event(
+            event_id='review-first-page', action='verify', target=['memory/topic.md#auth'],
+            reviewed_feedback=[row['event_id'] for row in first['pending']]))
+        # A consumed page changes the pending list; a saved offset no longer locates the next row.
+        stale = self.run_cli('feedback', '--ledger', ledger, '--project', self.root,
+                             '--offset', str(first['next_offset']))
+        self.assertEqual(stale['pending_count'], 2)
+        self.assertEqual(stale['pending'], [])
+        remaining = self.run_cli('feedback', '--ledger', ledger, '--project', self.root, '--offset', '0')
+        self.assertEqual({row['event_id'] for row in remaining['pending']}, {'feedback-10', 'feedback-11'})
+        # Leave one item deferred; reading a later page does not acknowledge it.
+        self.append_event(self.event(event_id='review-10', action='verify',
+                                     target=['memory/topic.md#auth'], reviewed_feedback=['feedback-10']))
+        final = self.run_cli('feedback', '--ledger', ledger, '--project', self.root)
+        self.assertEqual(final['pending_count'], 1)
+        self.assertEqual([row['event_id'] for row in final['pending']], ['feedback-11'])
+
     def test_retired_plugin_action_readable_but_not_newly_writable(self):
         event=json.loads(self.event(action='smart-review').read_text())
         ledger=self.root/'curate-events.v3.jsonl'

@@ -4,7 +4,7 @@
 
 | 平台 | 当前版本 | 源码入口 | 独立下载 |
 |---|---|---|---|
-| Claude Code | 2.2.3 | [根目录 SKILL.md](SKILL.md) | [Claude Code 安装包](https://github.com/LawlietJia/claude-code-curate-skill/releases/download/codex-v1.0.1/curate-claude-code-v2.2.3.zip) |
+| Claude Code | 2.2.5 | [根目录 SKILL.md](SKILL.md) | [Claude Code 安装包](https://github.com/LawlietJia/claude-code-curate-skill/releases/download/v2.2.5/curate-claude-code-v2.2.5.zip) |
 | Codex | 1.0.1 | [codex/curate/SKILL.md](codex/curate/SKILL.md) | [Codex 安装包](https://github.com/LawlietJia/claude-code-curate-skill/releases/download/codex-v1.0.1/curate-codex-v1.0.1.zip) |
 
 - **Claude Code**：安装包内 `curate/` 放入 `~/.claude/skills/`；调用 `/curate` 或 `/curate --deep`。
@@ -21,6 +21,7 @@ Claude Code 项目知识、原生记忆与无用产物治理。
 - 保留来源和条件，合并重复、纠正错误、提升重要规则、核验过期知识。
 - 规则变更及 Deep 治理中检查 CLAUDE.md 与关联规则的体量和加载方式，按用途精简、拆分并核验入口。
 - 联查旧新历史；记录真实使用反馈，处置后关联已处理事件。
+- 日常记账用 record 自动保存完整事件并校验追加；失败保留事件，原样重试。
 
 执行规则见 [SKILL.md](SKILL.md)、[治理规则](references/governance.md)、[日志规则](references/audit.md)。
 

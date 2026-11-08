@@ -9,6 +9,7 @@ import os
 import re
 import stat
 import sys
+import uuid
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -210,6 +211,7 @@ def guard(args):
 ACTIONS={'create','merge','dedup','archive','delete','promote','verify','no-op','skip','retire-audit','handoff','smart-review','feedback'}
 REQUIRED={'schema_version','event_id','run_id','ts','project','mode','action','target','detail','verification'}
 OPTIONAL={'pattern_key','source','feedback','reviewed_feedback'}
+AUTOMATIC_FIELDS={'schema_version','event_id','run_id','ts'}
 AREAS='user|project|workflow|tool|skill|hook|search|environment|knowledge'
 
 
@@ -232,7 +234,8 @@ def validate_event(event):
     if not project.is_absolute() or str(project.resolve())!=event['project']:
         raise ValueError('project must be a canonical absolute path')
     if event['mode'] not in {'quick','deep'}: raise ValueError('Invalid mode')
-    if event['action'] not in ACTIONS: raise ValueError('Invalid action')
+    if event['action'] not in ACTIONS:
+        raise ValueError('Invalid action. Allowed: '+', '.join(sorted(ACTIONS))+'. Use merge to correct existing knowledge.')
     if not isinstance(event['target'],list) or not event['target'] or any(not isinstance(t,str) or not t.strip() for t in event['target']):
         raise ValueError('target must be a nonempty string array')
     feedback=event.get('feedback')
@@ -344,10 +347,83 @@ def feedback(args):
                 note='Counts deduplicate project/target/task; conflicting effects are not success votes. Counts are recorded signals, not proof or an automatic ranking.')
 
 
-def append(args):
-    event=json.loads(Path(args.event).read_text());validate_event(event)
+def validate_new_event(event):
+    validate_event(event)
     if event['action'] in {'smart-review','retire-audit'}:
         raise ValueError('This action is read-only historical compatibility; create native governance events instead')
+
+
+def record(args):
+    event_path = reject_symlinks(args.event)
+    ledger_path = reject_symlinks(args.ledger)
+    if event_path == ledger_path:
+        raise ValueError('Event file and ledger must be different paths')
+    if args.run_id is not None and not args.run_id.strip():
+        raise ValueError('run-id must be nonempty')
+    if args.sequence is not None and args.sequence < 1:
+        raise ValueError('sequence must be a positive integer')
+
+    draft = None
+    if args.input is not None:
+        input_path = reject_symlinks(args.input)
+        if input_path in {event_path, ledger_path}:
+            raise ValueError('Input, saved event and ledger must be different paths')
+        draft = json.loads(input_path.read_text(encoding='utf-8'))
+        if not isinstance(draft, dict):
+            raise ValueError('Input must be a business-field object')
+        if AUTOMATIC_FIELDS & draft.keys():
+            raise ValueError('Input must omit automatic fields: '+', '.join(sorted(AUTOMATIC_FIELDS)))
+        run_id = args.run_id if args.run_id is not None else str(uuid.uuid4())
+        sequence = args.sequence if args.sequence is not None else 1
+        prepared = dict(draft, schema_version=3, run_id=run_id,
+                        event_id=f'{run_id}:{sequence}', ts=dt.datetime.now().astimezone().isoformat())
+        validate_new_event(prepared)
+
+    created = False
+    if draft is not None:
+        try:
+            # A later event must explicitly carry the first event's run identity.
+            if args.sequence is not None and args.sequence > 1 and args.run_id is None and not event_path.exists():
+                raise ValueError('New sequence > 1 needs the current run-id')
+            fd = os.open(event_path, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+            created = True
+        except FileExistsError:
+            fd = os.open(event_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    else:
+        fd = os.open(event_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+
+    with os.fdopen(fd, 'r+' if created else 'r', encoding='utf-8') as file:
+        metadata = os.fstat(file.fileno())
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+            raise ValueError('Saved event must be a regular file with one link')
+        fcntl.flock(file, fcntl.LOCK_EX)
+        if created:
+            file.write(json.dumps(prepared, ensure_ascii=False, indent=2)+'\n')
+            file.flush()
+            os.fsync(file.fileno())
+            event = prepared
+        else:
+            try:
+                event = json.load(file)
+                validate_new_event(event)
+            except (ValueError, TypeError) as error:
+                raise ValueError('Saved event is invalid; preserve it and resolve before retry: '+str(error)) from error
+            business = {key: value for key, value in event.items() if key not in AUTOMATIC_FIELDS}
+            if draft is not None and draft != business:
+                raise ValueError('Input conflicts with saved event; inspect the original event and ledger')
+            if args.run_id is not None and args.run_id != event['run_id']:
+                raise ValueError('run-id conflicts with saved event')
+            if args.sequence is not None and event['event_id'] != f"{event['run_id']}:{args.sequence}":
+                raise ValueError('sequence conflicts with saved event')
+        # The event is durable before touching the ledger; an uncertain result can be retried.
+        if ledger_path.exists() and os.path.samefile(event_path, ledger_path):
+            raise ValueError('Saved event and ledger refer to the same file')
+        result = append(argparse.Namespace(ledger=str(ledger_path), event=str(event_path)))
+        return dict(result, run_id=event['run_id'], event_file=str(event_path))
+
+
+def append(args):
+    event=json.loads(Path(args.event).read_text());validate_new_event(event)
     path=reject_symlinks(args.ledger)
     if not path.parent.is_dir(): raise ValueError('Create the intended ledger directory explicitly first')
     fd=os.open(path,os.O_RDWR|os.O_CREAT|os.O_NOFOLLOW,0o600)
@@ -413,6 +489,11 @@ def main():
     p=sub.add_parser('inspect',help='Read-only Markdown inventory and link/index checks')
     p.add_argument('--memory',required=True);p.add_argument('--project');p.add_argument('--claude-version',help='Optional metadata only; never gates index checks');p.add_argument('--snapshot')
     p=sub.add_parser('guard',help='Check file drift against an inspect snapshot');p.add_argument('--snapshot',required=True)
+    p=sub.add_parser('record',help='Save a retryable event and append it through the validated ledger writer')
+    p.add_argument('--ledger',required=True);p.add_argument('--event',required=True)
+    p.add_argument('--input',help='Business-field JSON for a new event; omit to retry the saved event')
+    p.add_argument('--run-id',help='Reuse the current run ID for subsequent events')
+    p.add_argument('--sequence',type=int,help='Positive event sequence; new events default to 1')
     p=sub.add_parser('append',help='Validate and idempotently append one current v3 event')
     p.add_argument('--ledger',required=True);p.add_argument('--event',required=True)
     p=sub.add_parser('validate',help='Validate only a current v3 ledger');p.add_argument('--ledger',required=True)
