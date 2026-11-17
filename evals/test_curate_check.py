@@ -62,6 +62,57 @@ class CurateCheckTests(unittest.TestCase):
         result=self.run_cli('inspect','--memory',self.memory)
         self.assertTrue(any(i['type']=='manual_link_review' for i in result['issues']))
 
+    def test_wikilink_resolution_groups_exact_targets_and_ignores_examples(self):
+        (self.memory/'topic.md').write_text(
+            '---\nname: "共享名"\ndescription: "[[metadata-example]]"\n---\n'
+            '[[topic]] [[共享名]] [[topic.md]] [[missing]] [[dup]]\n'
+            '[[missing]] and [manual](absent.md)\n'
+            '`[[inline]]` <!-- [[comment]] -->\n~~~md\n[[example]]\n~~~\n'
+            '[[topic|display]]\n[web](https://example.org/[[remote]]) [[topic]]\n')
+        (self.memory/'dup.md').write_text('# one\n')
+        nested = self.memory/'nested'
+        nested.mkdir()
+        (nested/'other.md').write_text("---\nname: 'dup'\n---\n[[missing]]\n")
+        issues = self.run_cli('inspect', '--memory', self.memory, code=1)['issues']
+        wiki = {i['target']: i for i in issues if i['type'].endswith('_wikilink')}
+        self.assertEqual(set(wiki), {'missing', 'dup'})
+        self.assertEqual(wiki['missing']['type'], 'unresolved_wikilink')
+        self.assertEqual(wiki['missing']['locations'], [
+            {'file': 'nested/other.md', 'line': 4}, {'file': 'topic.md', 'line': 5},
+            {'file': 'topic.md', 'line': 6}])
+        self.assertEqual(wiki['dup']['type'], 'ambiguous_wikilink')
+        self.assertEqual(wiki['dup']['candidates'], ['dup.md', 'nested/other.md'])
+        self.assertEqual([i['line'] for i in issues if i['type']=='manual_link_review'], [11])
+        self.assertEqual([i['target'] for i in issues if i['type']=='broken_link'], ['absent.md'])
+
+    def test_crlf_topic_links_preserve_source_bytes_and_snapshot_identity(self):
+        topic = self.memory / 'topic.md'
+        original = (b'---\r\nname: stable-id\r\ndescription: "[[example]]"\r\n'
+                    b'type: reference\r\n---\r\nSee [[stable-id]].\r\n')
+        topic.write_bytes(original)
+        snap = self.root / 'snapshot.json'
+        inspected = self.run_cli('inspect', '--memory', self.memory, '--snapshot', snap)
+        self.assertEqual(inspected['issues'], [])
+        self.run_cli('guard', '--snapshot', snap)
+        self.assertEqual(topic.read_bytes(), original)
+
+        topic.write_bytes(original.replace(b'\r\n', b'\n'))
+        guarded = self.run_cli('guard', '--snapshot', snap, code=1)
+        self.assertEqual(guarded['changed'], ['topic.md'])
+
+    def test_renamed_wiki_target_keeps_all_incoming_locations(self):
+        (self.memory/'MEMORY.md').write_text('[[topic]]\n')
+        (self.memory/'reader.md').write_text('See [[topic]].\n')
+        (self.memory/'topic.md').rename(self.memory/'updated.md')
+        issues = self.run_cli('inspect', '--memory', self.memory)['issues']
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0]['locations'], [
+            {'file':'MEMORY.md', 'line':1}, {'file':'reader.md', 'line':1}])
+        for name in ['MEMORY.md', 'reader.md']:
+            p=self.memory/name
+            p.write_text(p.read_text().replace('[[topic]]', '[[updated]]'))
+        self.assertEqual(self.run_cli('inspect', '--memory', self.memory)['issues'], [])
+
     def test_missing_memory_or_index_is_error_without_creating_files(self):
         absent=self.root/'absent'
         self.run_cli('inspect','--memory',absent,code=1)

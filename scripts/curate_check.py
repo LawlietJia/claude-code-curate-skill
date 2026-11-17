@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Small local checks for Claude Code curate. No semantic edits or external calls."""
+from collections import defaultdict
 import argparse
 import datetime as dt
 import fcntl
@@ -96,7 +97,39 @@ def destination(text, start=0, inline=False):
     return value if re.match(title, rest) else None
 
 
-def links(text):
+# Support the plain memory template syntax; richer Markdown stays reviewable.
+WIKI_NAME = r'[\w-]+(?:\.[\w-]+)*'
+WIKI_LINK = re.compile(r'(?<![\\\[!])\[\[(' + WIKI_NAME + r')\]\](?![\](])')
+MEMORY_HEADER = re.compile(r'\A---[ \t]*\n(.*?)^(?:---|\.\.\.)[ \t]*(?:\n|$)', re.M | re.S)
+
+
+def memory_names(header):
+    if not header:
+        return []
+    # Only unambiguous, top-level scalar names; never interpret arbitrary YAML.
+    names = re.findall(r'^name:[ \t]*(.*)$', header[1], re.M)
+    if len(names) != 1:
+        return []
+    scalar = re.fullmatch(rf"""(["']?)({WIKI_NAME})\1(?:[ \t]+[#].*)?[ \t]*""", names[0])
+    return [scalar[2]] if scalar else []
+
+
+def extract_wikis(line, number, wiki_refs):
+    # Leave ordinary Markdown destinations intact, even if a URL contains [[...]].
+    # For mixed/complex markup, keep the conservative manual-review fallback.
+    masked = list(line)
+    dests = re.finditer(r'\]\((?:\\.|[^()\\]|\((?:\\.|[^()\\])*\))*\)', line)
+    for dest in dests:
+        masked[dest.start():dest.end()] = ' ' * len(dest[0])
+    result = list(line)
+    for match in WIKI_LINK.finditer(''.join(masked)):
+        wiki_refs.append((number, match[1]))
+        result[match.start():match.end()] = ' ' * len(match[0])
+        masked[match.start():match.end()] = ' ' * len(match[0])
+    return ''.join(result), '[[' in ''.join(masked)
+
+
+def links(text, wiki_refs=None):
     definitions, found, manual = {}, [], []
     clean = visible_markdown(text, manual)
     for number, line in enumerate(clean.split('\n'), 1):
@@ -105,7 +138,12 @@ def links(text):
             definitions[' '.join(m[1].lower().split())] = destination(m[2])
     for number, line in enumerate(clean.split('\n'), 1):
         if re.match(r'^ {0,3}\[[^\]]+\]:', line): continue
-        if '[[' in line: manual.append(number)
+        if '[[' in line:
+            needs_review = True
+            if wiki_refs is not None:
+                line, needs_review = extract_wikis(line, number, wiki_refs)
+            if needs_review:
+                manual.append(number)
         # Handle ordinary inline and reference Markdown links, including images.
         for m in re.finditer(r'(?<!\\)\[([^\]\n]*)\]', line):
             label, tail = m[1], line[m.end():]
@@ -154,8 +192,20 @@ def inventory(root):
 
 def inspect(args):
     root, files, bodies, issues = inventory(args.memory)
-    for rel, body in bodies.items():
-        extracted, manual = links(body)
+    candidates = defaultdict(set)
+    references = defaultdict(set)
+    for rel, body in sorted(bodies.items()):
+        # Normalize the parser input only; inventory hashes the original bytes.
+        body = body.replace('\r\n', '\n')
+        header = MEMORY_HEADER.match(body)
+        for name in [Path(rel).stem, *memory_names(header)]:
+            candidates[name].add(rel)
+        if header:
+            body = '\n' * header[0].count('\n') + body[header.end():]
+        wiki_refs = []
+        extracted, manual = links(body, wiki_refs)
+        for number, target in wiki_refs:
+            references[target].add((rel, number))
         issues.extend(issue('manual_link_review',rel,n,severity='warning') for n in manual)
         for number, target in extracted:
             parsed=urlsplit(target)
@@ -165,6 +215,19 @@ def inspect(args):
             p=Path(os.path.expanduser(raw))
             dest=p if p.is_absolute() else root/Path(rel).parent/p
             if not dest.exists(): issues.append(issue('broken_link',rel,number,target))
+    for target, positions in sorted(references.items()):
+        matches = candidates.get(target, set())
+        if target.endswith('.md'):
+            matches = matches | candidates.get(target[:-3], set())
+        if len(matches) == 1:
+            continue
+        locations = sorted(positions)
+        kind = 'ambiguous_wikilink' if matches else 'unresolved_wikilink'
+        entry = issue(kind, *locations[0], target, severity='warning')
+        entry['locations'] = [dict(file=rel, line=n) for rel, n in locations]
+        if matches:
+            entry['candidates'] = sorted(matches)
+        issues.append(entry)
     metrics = None
     if 'MEMORY.md' not in bodies:
         issues.append(issue('missing_index','MEMORY.md'))
