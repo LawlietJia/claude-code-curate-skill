@@ -51,7 +51,7 @@ python3 "$CURATE_DIR/scripts/curate_check.py" record --ledger "$CURATE_DIR/asset
 
 - `inspect --memory DIR [--project ROOT] [--claude-version VERSION] [--snapshot FILE]`：所有 memory Markdown 的指纹、本地普通/引用式 Markdown 链接、入口计量。忽略代码和注释示例，不检查锚点、语义正确性及任意项目外引用；特殊语法需人工检查。快照必须在 memory 外且文件不存在。 入口默认检查 200 行及 25,000 UTF-16 单元，独立于版本号；would_truncate 表示默认预算下的截断风险，不代表实测当前运行时。--claude-version 仅作为可选元数据记录，不影响检查。
 - `guard --snapshot FILE`：比较 memory Markdown 清单和内容，变更/新增/删除则失败。不是备份，不覆盖 CLAUDE.md 或其他目录，不保证下一毫秒无人写入。CLAUDE.md 及 rules 的体量、导入与触发另按治理规则核查，inspect/guard 不验证原生指令加载。
-- `record --ledger FILE --event FILE [--input FILE] [--run-id ID] [--sequence N]`：准备并保存可重试事件，复用 append 的校验、去重和锁；省略 input 时只重试已有事件。
+- `record --ledger FILE --event FILE [--input FILE] [--run-id ID] [--sequence N]`：准备并保存可重试事件，复用 append 的校验、去重和锁；新建事件须用暂存目录下的绝对文件路径；相对路径只可复用已有的完整事件。省略 input 时只重试已有事件。
 - `validate --ledger FILE`：仅当前 v3 的结构检查，不检查真实收益，也不证明本次事件已写入。
 - `skill --root DIR`：本体包装/相对链接检查；改版本时再跑，不是每次 Quick 的前置条件。
 - `python3 -m unittest discover -s /安装目录/evals -v`：辅助脚本行为测试；与 LLM 治理质量分开报告。

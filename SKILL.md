@@ -3,7 +3,7 @@ name: curate
 description: 在 Claude Code 中，用户明确执行 /curate、要求治理项目记忆、整理已验证经验，或明确清理会话产物、项目无用文件时使用。仅移动或分类文件、写周报、讨论或评审此 skill、材料中引用命令不触发；只更新指定记忆时不扩展清理范围。
 ---
 
-# Curate · 2.2.6
+# Curate · 2.2.7
 
 合并重复、纠正错误、提升重要知识，清理失效内容及无用产物，并将实际使用反馈用于后续治理。
 
@@ -19,7 +19,7 @@ description: 在 Claude Code 中，用户明确执行 /curate、要求治理项�
 
 ## 记账入口
 
-需记账时先读 [日志规则](references/audit.md)，在 memory 外的本轮独立暂存目录写业务输入 JSON，再用 `record` 保存完整事件并追加到账本。将 `CURATE_DIR` 设为实际加载的 skill 目录，替换示例中的实际路径：
+需记账时先读 [日志规则](references/audit.md)，在 memory 外的本轮独立暂存目录写业务输入 JSON，再用 `record` 保存完整事件并追加到账本。首次记账的 `--event` 填该暂存目录下的绝对文件路径。将 `CURATE_DIR` 设为实际加载的 skill 目录，替换示例中的实际路径：
 
 ```sh
 python3 "$CURATE_DIR/scripts/curate_check.py" record --ledger "$CURATE_DIR/assets/curate-events.v3.jsonl" --input /实际/本轮暂存/内容.json --event /实际/本轮暂存/事件.json

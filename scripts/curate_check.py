@@ -443,7 +443,8 @@ def record(args):
         validate_new_event(prepared)
 
     created = False
-    if draft is not None:
+    # Relative paths may replay an existing event, but must never create one in cwd.
+    if draft is not None and os.path.isabs(os.path.expanduser(args.event)):
         try:
             # A later event must explicitly carry the first event's run identity.
             if args.sequence is not None and args.sequence > 1 and args.run_id is None and not event_path.exists():
@@ -453,7 +454,13 @@ def record(args):
         except FileExistsError:
             fd = os.open(event_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     else:
-        fd = os.open(event_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        try:
+            fd = os.open(event_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        except FileNotFoundError as error:
+            if draft is not None:
+                raise ValueError('New --event needs an absolute file path in the staging directory; '
+                                 'relative paths can only retry a saved event') from error
+            raise
 
     with os.fdopen(fd, 'r+' if created else 'r', encoding='utf-8') as file:
         metadata = os.fstat(file.fileno())
@@ -553,7 +560,8 @@ def main():
     p.add_argument('--memory',required=True);p.add_argument('--project');p.add_argument('--claude-version',help='Optional metadata only; never gates index checks');p.add_argument('--snapshot')
     p=sub.add_parser('guard',help='Check file drift against an inspect snapshot');p.add_argument('--snapshot',required=True)
     p=sub.add_parser('record',help='Save a retryable event and append it through the validated ledger writer')
-    p.add_argument('--ledger',required=True);p.add_argument('--event',required=True)
+    p.add_argument('--ledger',required=True)
+    p.add_argument('--event',required=True,help='Saved event file; use an absolute path to create it')
     p.add_argument('--input',help='Business-field JSON for a new event; omit to retry the saved event')
     p.add_argument('--run-id',help='Reuse the current run ID for subsequent events')
     p.add_argument('--sequence',type=int,help='Positive event sequence; new events default to 1')

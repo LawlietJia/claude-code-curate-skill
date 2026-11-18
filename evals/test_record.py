@@ -33,7 +33,7 @@ class RecordTests(unittest.TestCase):
 
     def cli(self, *args, code=0):
         result = subprocess.run([sys.executable, '-B', str(SCRIPT), *map(str, args)],
-                                text=True, capture_output=True, timeout=10)
+                                text=True, capture_output=True, timeout=10, cwd=self.root)
         self.assertEqual(result.returncode, code, result.stdout + result.stderr)
         body = json.loads(result.stdout)
         self.assertEqual(body['ok'], code == 0)
@@ -116,6 +116,28 @@ class RecordTests(unittest.TestCase):
                 self.record('--input', self.input, *args, code=1)
                 self.assertFalse(self.event.exists())
                 self.assertFalse(self.ledger.exists())
+
+    def test_new_event_rejects_relative_output_without_writing_files(self):
+        for argument in ('cleanup', '{"action":"merge"}', 'event.json'):
+            with self.subTest(argument=argument):
+                result = self.record('--input', self.input, event=argument, code=1)
+                self.assertIn('--event', result['error'])
+                self.assertIn('absolute', result['error'])
+                self.assertEqual(set(self.root.iterdir()), {self.input})
+
+    def test_missing_event_directory_does_not_create_files(self):
+        self.record('--input', self.input, event=self.root / 'absent' / 'event.json', code=1)
+        self.assertEqual(set(self.root.iterdir()), {self.input})
+
+    def test_existing_relative_event_can_still_be_retried(self):
+        first = self.record('--input', self.input)
+        saved = self.event.read_bytes()
+        for args in [(), ('--input', self.input)]:
+            retry = self.record(*args, event=self.event.name)
+            self.assertFalse(retry['appended'])
+            self.assertEqual(retry['event_id'], first['event_id'])
+        self.assertEqual(self.event.read_bytes(), saved)
+        self.assertEqual(len(self.rows()), 1)
 
     def test_missing_and_partial_event_are_not_regenerated(self):
         self.record(code=1)
