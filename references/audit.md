@@ -45,11 +45,12 @@ python3 "$CURATE_DIR/scripts/curate_check.py" record --ledger "$CURATE_DIR/asset
 
 当前账本损坏时停止追加、保留原件并报告具体行，勿报全部成功。历史账本错误另报，不能混进当前校验分母。日志增长到读取成本明显变高时，可按已授权方式分段并保留范围及来源定位；没有必要每次加载全历史。
 
-产物清理沿用 delete/dedup/merge；同一理由的一组相关文件可写一条事件，target 列实际路径，detail 写删除依据、保留对象和必要恢复位置，verification 写实际核验及局限。未发生知识使用就不造 feedback，不为每个缓存单独记账。
+产物清理沿用 delete/dedup/merge；同一理由的一组相关文件可写一条事件，target 列实际路径，detail 写删除依据、保留对象和必要恢复位置，verification 写实际核验及局限。永久遗忘沿用同一事件格式，从业务输入起使用不含待忘内容的目标标识，仅记范围、结果及限制。未发生知识使用就不造 feedback，不为每个缓存单独记账。
 
 ## 校验覆盖
 
 - `inspect --memory DIR [--project ROOT] [--claude-version VERSION] [--snapshot FILE]`：所有 memory Markdown 的指纹、本地普通/引用式 Markdown 链接、入口计量。忽略代码和注释示例，不检查锚点、语义正确性及任意项目外引用；特殊语法需人工检查。快照必须在 memory 外且文件不存在。 入口默认检查 200 行及 25,000 UTF-16 单元，独立于版本号；would_truncate 表示默认预算下的截断风险，不代表实测当前运行时。--claude-version 仅作为可选元数据记录，不影响检查。
+- 完整 `inspect` 同时报告到期条款。仅需复查提示时用 `inspect --memory DIR --due-only`，读取同一目录，只输出检查日期、命中位置和扫描问题。`review_due` 为待核，`invalid_review_date` 需核对日期。精简模式不检查链接或生成快照。
 - `guard --snapshot FILE`：比较 memory Markdown 清单和内容，变更/新增/删除则失败。不是备份，不覆盖 CLAUDE.md 或其他目录，不保证下一毫秒无人写入。CLAUDE.md 及 rules 的体量、导入与触发另按治理规则核查，inspect/guard 不验证原生指令加载。
 - `record --ledger FILE --event FILE [--input FILE] [--run-id ID] [--sequence N]`：准备并保存可重试事件，复用 append 的校验、去重和锁；新建事件须用暂存目录下的绝对文件路径；相对路径只可复用已有的完整事件。省略 input 时只重试已有事件。
 - `validate --ledger FILE`：仅当前 v3 的结构检查，不检查真实收益，也不证明本次事件已写入。
@@ -63,7 +64,7 @@ python3 "$CURATE_DIR/scripts/curate_check.py" history --assets "$CURATE_DIR/asse
 python3 "$CURATE_DIR/scripts/curate_check.py" feedback --ledger "$CURATE_DIR/assets/curate-events.v3.jsonl" --project /实际/项目
 ```
 
-这两个命令只读。history 联查主历史、legacy 和 v3；处理旧行 warning 时保留原件；当前 v3 坏行先报告并停止消费。已知其他项目排除，未知项目标 unknown，不能硬猜。返回出处与预览，决定前按出处读完整记录并核对当前正文。命令支持 `--limit 10 --offset 0`，不把第一页当全量。history 按 next_offset 继续；feedback 在选定范围内先完成分页读取，再写消费事件，范围之外明确未覆盖。消费会缩短 pending 列表，使旧 next_offset 失效；消费后需续读时从 offset=0 重查，再完成本轮分页读取。证据不足的条目保留未决，同轮无新证据不反复复核，不为清零 pending 循环查询。
+这两个命令只读。history 联查主历史、legacy 和 v3；处理旧行 warning 时保留原件；当前 v3 坏行先报告并停止消费。已知其他项目排除，未知项目标 unknown，不能硬猜。返回出处与预览，决定前按出处读完整记录并核对当前正文。命令支持 `--limit 10 --offset 0`，不把第一页当全量。history 仅在处置仍缺历史依据时按 next_offset 续查，停止时说明剩余范围；feedback 在选定范围内先完成分页读取，再写消费事件，范围之外明确未覆盖。消费会缩短 pending 列表，使旧 next_offset 失效；消费后需续读时从 offset=0 重查，再完成本轮分页读取。证据不足的条目保留未决，同轮无新证据不反复复核，不为清零 pending 循环查询。
 
 新 pattern_key 用 `领域.主题`：领域限 user/project/workflow/tool/skill/hook/search/environment/knowledge；主题用小写字母、数字和连字符，例如 `tool.render-auth`。先搜同义词和旧 key 再创建，避免版本、主机、路径快照进入 key。同义别名可简写在现有主题正文，不另建大词表。append 拒绝随意新造非规范 key；旧账本或当前 v3 已有的精确 key 可继续复用，不要求批量改名。key 是分组检索线索，知识身份还要看项目、具体目标与适用条件，不因同 key 强并。
 

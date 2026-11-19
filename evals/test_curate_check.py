@@ -1,4 +1,5 @@
 """Behavioral tests of the file checker, not tests of an LLM's judgment."""
+import datetime as dt
 import json
 import subprocess
 import sys
@@ -38,12 +39,88 @@ class CurateCheckTests(unittest.TestCase):
         p.write_text(json.dumps(data))
         return p
 
+    def test_malformed_url_does_not_hide_other_findings(self):
+        (self.memory / 'topic.md').write_text(
+            '[portal](https://[bad)\n[form](missing.md)\n复查日期：2000-01-01\n')
+        result = self.run_cli('inspect', '--memory', self.memory, code=1)
+        self.assertFalse(result['ok'])
+        self.assertCountEqual(
+            [(i['type'], i['file'], i['line']) for i in result['issues']],
+            [('invalid_link', 'topic.md', 1), ('broken_link', 'topic.md', 2),
+             ('review_due', 'topic.md', 3)])
+
     def test_inspects_all_markdown_and_backlinks(self):
         (self.memory / 'tools.md').write_text('[obsolete](old.md)\n')
         result = self.run_cli('inspect', '--memory', self.memory, code=1)
         self.assertEqual(len(result['files']), 3)
         bad = [i for i in result['issues'] if i['type']=='broken_link']
         self.assertEqual([(i['file'],i['target']) for i in bad], [('tools.md','old.md')])
+
+    def test_review_dates_are_scoped_to_visible_clauses_and_due_by_today(self):
+        today = dt.date.today().isoformat()
+        topic = self.memory / 'topic.md'
+        lines = ['---', 'description: |', '  复查日期：2000-01-01', '---',
+                 'A', '复查日期：2000-01-01', 'B', f'复查日期：{today}',
+                 '复查日期：9999-12-31', '复查日期：2025-02-29',
+                 '> 复查日期：2000-01-01', '~~~md', '复查日期：2000-01-01', '~~~',
+                 '<!--', '复查日期：2000-01-01', '-->', '    复查日期：2000-01-01',
+                 '`复查日期：2000-01-01`', '办理日期：2000-01-01', '复查日期：',
+                 '<!-- unclosed', '复查日期：2000-01-01']
+        original = ('\r\n'.join(lines) + '\r\n').encode()
+        topic.write_bytes(original)
+        compact = self.run_cli('inspect', '--memory', self.memory, '--due-only')
+        self.assertNotIn('files', compact)
+        self.assertNotIn('index', compact)
+        self.assertEqual([(x['type'], x['file'], x['line'], x['target']) for x in compact['issues']],
+                         [('review_due', 'topic.md', 6, '2000-01-01'),
+                          ('review_due', 'topic.md', 8, today),
+                          ('invalid_review_date', 'topic.md', 10, ''),
+                          ('invalid_review_date', 'topic.md', 21, '')])
+        self.assertEqual(self.run_cli('inspect', '--memory', self.memory)['issues'], compact['issues'])
+        self.assertEqual(topic.read_bytes(), original)
+
+    def test_review_condition_replaces_due_marker_without_repeating(self):
+        topic = self.memory / 'topic.md'
+        topic.write_text('试点到期后查正式通知。\n复查日期：2001-08-30\n')
+        def scan():
+            return self.run_cli('inspect', '--memory', self.memory, '--due-only')['issues']
+        self.assertEqual(len(scan()), 1)
+        topic.write_text('试点期已满，办理前查正式通知。\n年度核对仍有效。\n')
+        self.assertEqual(scan(), [])
+        topic.write_text('正式通知已生效，按新规办理。\n年度核对仍有效。\n')
+        self.assertEqual(scan(), [])
+        snap = self.root / 's.json'
+        self.run_cli('inspect', '--memory', self.memory, '--due-only', '--snapshot', snap, code=1)
+        self.assertFalse(snap.exists())
+
+    def test_example_comment_delimiter_does_not_hide_later_real_clause(self):
+        (self.memory/'topic.md').write_text(
+            '~~~md\n<!-- a literal opener\n~~~\n上次用 `<!--` 解释注释。\n'
+            '复查日期：2000-01-01\n[旧链接](missing.md)\n')
+        result = self.run_cli('inspect', '--memory', self.memory, code=1)
+        self.assertEqual({(i['type'], i['line']) for i in result['issues']},
+                         {('review_due', 5), ('broken_link', 6)})
+
+    def test_literal_backticks_keep_real_dates_and_links_visible(self):
+        marker = '复查日期：2000-01-01'
+        lines = [r'展示字面反引号 \`', marker, r'[[retired]] 和 \`。',
+                 r'成对反斜杠之后打开代码 \\`', marker, '[[in-span]]`',
+                 r'转义符号后紧接代码 \``', marker, '[[adjacent-span]]`',
+                 '~~~md', marker, '[[in-fence]]', '~~~']
+        topic = self.memory / 'topic.md'
+        original = ('\r\n'.join(lines) + '\r\n').encode()
+        topic.write_bytes(original)
+        full = self.run_cli('inspect', '--memory', self.memory)
+        self.assertEqual([(i['type'], i['line'], i['target']) for i in full['issues']],
+                         [('review_due', 2, '2000-01-01'), ('unresolved_wikilink', 3, 'retired')])
+        compact = self.run_cli('inspect', '--memory', self.memory, '--due-only')
+        self.assertEqual(compact['issues'], full['issues'][:1])
+        self.assertEqual(topic.read_bytes(), original)
+
+    def test_unmatched_backticks_in_separate_paragraphs_do_not_hide_due_date(self):
+        (self.memory/'topic.md').write_text('段内的 ` 字符。\n\n复查日期：2001-01-01\n\n另一个 ` 字符。')
+        result = self.run_cli('inspect', '--memory', self.memory, '--due-only')
+        self.assertEqual([(i['type'], i['line']) for i in result['issues']], [('review_due', 3)])
 
     def test_ignores_code_comments_and_remote_links(self):
         (self.memory / 'topic.md').write_text('`[example](absent.md)`\n```md\n[x](fake.md)\n```\n<!-- [x](hidden.md) -->\n[web](https://example.com/x)\n')

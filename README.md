@@ -4,7 +4,7 @@
 
 | 平台 | 当前版本 | 源码入口 | 独立下载 |
 |---|---|---|---|
-| Claude Code | 2.2.7 | [根目录 SKILL.md](SKILL.md) | [Claude Code 安装包](https://github.com/LawlietJia/claude-code-curate-skill/releases/download/v2.2.7/curate-claude-code-v2.2.7.zip) |
+| Claude Code | 2.2.13 | [根目录 SKILL.md](SKILL.md) | [Claude Code 安装包](https://github.com/LawlietJia/claude-code-curate-skill/releases/download/v2.2.13/curate-claude-code-v2.2.13.zip) |
 | Codex | 1.0.1 | [codex/curate/SKILL.md](codex/curate/SKILL.md) | [Codex 安装包](https://github.com/LawlietJia/claude-code-curate-skill/releases/download/codex-v1.0.1/curate-codex-v1.0.1.zip) |
 
 - **Claude Code**：安装包内 `curate/` 放入 `~/.claude/skills/`；调用 `/curate` 或 `/curate --deep`。

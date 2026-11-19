@@ -35,28 +35,34 @@ def reject_symlinks(path):
     return p
 
 
+# Match opaque regions in source order: a comment opener inside code is literal.
+MARKDOWN_EXAMPLES = re.compile(
+    r'^ {0,3}(?P<ticks>`{3,})[^`\n]*\n.*?(?:^ {0,3}(?P=ticks)`*[ \t]*(?=\n|\Z)|\Z)'
+    r'|^ {0,3}(?P<tildes>~{3,})[^\n]*\n.*?(?:^ {0,3}(?P=tildes)~*[ \t]*(?=\n|\Z)|\Z)'
+    r'|<!--.*?(?:-->|\Z)'
+    # Outside code, escaped backticks are literal and pairs of backslashes cancel.
+    r'|(?P<escaped>\\[\\`])'
+    r'|(?P<span>`+)(?!`)(?:[^\n]|\n(?![ \t]*\n))*?(?<!`)(?P=span)(?!`)'
+    r'|(?P<unmatched>`+)'  # Consume the whole unmatched run before trying another opener.
+    r'|^(?P<indented> {4}|\t)[^\n]*',
+    re.MULTILINE | re.DOTALL,
+)
+
+
 def visible_markdown(text, manual):
     """Blank examples while retaining line positions. Not a full Markdown renderer."""
-    text = re.sub(r'<!--[\s\S]*?-->', lambda m: '\n'*m[0].count('\n'), text)
-    out, fence = [], None
-    for number, line in enumerate(text.split('\n'), 1):
-        m = re.match(r'^ {0,3}(`{3,}|~{3,})', line)
-        if fence:
-            if m and m[1][0] == fence[0] and len(m[1]) >= len(fence):
-                fence = None
-            out.append('')
-        elif m:
-            fence = m[1]; out.append('')
-        elif line.startswith(('    ', '\t')):
-            # Indentation can be code OR a nested list; don't silently certify it.
-            if '[' in line or re.search(r'<a\s|<img\s', line, re.I): manual.append(number)
-            out.append('')
-        else:
-            out.append(line)
-    # Match equal-length backtick spans, including multiline examples.
-    s = '\n'.join(out)
-    return re.sub(r'(?<!`)(`+)(?!`)([\s\S]*?)(?<!`)\1(?!`)',
-                  lambda m: '\n'*m[0].count('\n'), s)
+    def blank(match):
+        example = match[0]
+        return example if match.lastgroup in ('escaped', 'unmatched', 'indented') else '\n' * example.count('\n')
+
+    lines = MARKDOWN_EXAMPLES.sub(blank, text).split('\n')
+    for index, line in enumerate(lines):
+        if line.startswith(('    ', '\t')):
+            # Indentation can be code or a nested list. Leave ambiguous links for review.
+            if '[' in line or re.search(r'<a\s|<img\s', line, re.I):
+                manual.append(index + 1)
+            lines[index] = ''
+    return '\n'.join(lines)
 
 
 def destination(text, start=0, inline=False):
@@ -190,31 +196,67 @@ def inventory(root):
     return root, dict(sorted(files.items())), bodies, issues
 
 
+REVIEW_LINE = re.compile(r'^复查日期[：:][ \t]*(.*?)[ \t]*$')
+
+
+def review_dates(body, rel, today):
+    if '复查日期' not in body:
+        return
+    visible = visible_markdown(body, [])
+    for number, (raw, line) in enumerate(zip(body.split('\n'), visible.split('\n')), 1):
+        match = REVIEW_LINE.fullmatch(raw)
+        if not match or line != raw:
+            continue
+        value = match[1]
+        try:
+            date = dt.date.fromisoformat(value)
+            if date.isoformat() != value:
+                raise ValueError
+        except ValueError:
+            yield issue('invalid_review_date', rel, number, severity='warning')
+            continue
+        if date <= today:
+            yield issue('review_due', rel, number, value, severity='warning')
+
+
 def inspect(args):
+    if args.due_only and args.snapshot:
+        raise ValueError('--due-only cannot create a write guard snapshot; use full inspect')
     root, files, bodies, issues = inventory(args.memory)
     candidates = defaultdict(set)
     references = defaultdict(set)
+    today = dt.date.today()
     for rel, body in sorted(bodies.items()):
         # Normalize the parser input only; inventory hashes the original bytes.
         body = body.replace('\r\n', '\n')
         header = MEMORY_HEADER.match(body)
-        for name in [Path(rel).stem, *memory_names(header)]:
-            candidates[name].add(rel)
         if header:
             body = '\n' * header[0].count('\n') + body[header.end():]
+        issues.extend(review_dates(body, rel, today))
+        if args.due_only:
+            continue
+        for name in [Path(rel).stem, *memory_names(header)]:
+            candidates[name].add(rel)
         wiki_refs = []
         extracted, manual = links(body, wiki_refs)
         for number, target in wiki_refs:
             references[target].add((rel, number))
         issues.extend(issue('manual_link_review',rel,n,severity='warning') for n in manual)
         for number, target in extracted:
-            parsed=urlsplit(target)
+            try:
+                parsed = urlsplit(target)
+            except ValueError:
+                issues.append(issue('invalid_link', rel, number, target))
+                continue
             if parsed.scheme or parsed.netloc or target.startswith('#'): continue
             raw=unquote(parsed.path)
             if not raw: continue
             p=Path(os.path.expanduser(raw))
             dest=p if p.is_absolute() else root/Path(rel).parent/p
             if not dest.exists(): issues.append(issue('broken_link',rel,number,target))
+    if args.due_only:
+        return dict(ok=not any(i['severity']=='error' for i in issues),
+                    as_of=today.isoformat(), issues=issues)
     for target, positions in sorted(references.items()):
         matches = candidates.get(target, set())
         if target.endswith('.md'):
@@ -557,6 +599,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     sub=parser.add_subparsers(dest='command',required=True)
     p=sub.add_parser('inspect',help='Read-only Markdown inventory and link/index checks')
+    p.add_argument('--due-only',action='store_true',help='Only report due review dates, invalid markers and scan problems')
     p.add_argument('--memory',required=True);p.add_argument('--project');p.add_argument('--claude-version',help='Optional metadata only; never gates index checks');p.add_argument('--snapshot')
     p=sub.add_parser('guard',help='Check file drift against an inspect snapshot');p.add_argument('--snapshot',required=True)
     p=sub.add_parser('record',help='Save a retryable event and append it through the validated ledger writer')
